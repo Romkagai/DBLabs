@@ -36,6 +36,7 @@ FROM pd_products WHERE is_vegan OR is_hot;
 /*Список всех сотрудников в формате: <Имя> должность “<название с маленькой буквы>”,
   работает с <месяц (имя месяца)> <год> года.*/
 
+set lc_time = 'ru_RU';
 SELECT name || ', должность ' || lower(post) || ', работает с ' || to_char(start_date, 'TMMonth') ||
  ' ' || extract(year from start_date) || ' года' as employees
 from pd_employees;
@@ -79,7 +80,6 @@ SELECT product_name, price,
 
     cast((cast(substring(cast(price as text) from 1 for 1) as numeric) + 1) *
     power(10, length(cast (floor(price) as text)) - 1) - 1 as numeric) as new_price,
-
 
     trunc(cast((cast(substring(cast(price as text) from 1 for 1) as numeric) + 1) *
     power(10, length(cast (floor(price) as text)) - 1) - 1 as numeric) / price, 3) as "%",
@@ -160,17 +160,18 @@ JOIN pd_employees second ON first.manager_id = second.id;
   В списке также должны отображаться: имя курьера, адрес, район (‘нет’ – если район не известен).
   Выборка должна быть отсортирована по именам курьеров.*/
 
+--доделать исключение! id не работает с distinctom
+
 SELECT pd_employees.name,
        street || ', дом ' || house_number || ', кв. ' || apartment as full_address,
-       CASE WHEN area IS NULL THEN 'Нет' ELSE area END AS area,
-       extract(month from delivery_date)
+       CASE WHEN area IS NULL THEN 'Нет' ELSE area END AS area
 FROM pd_orders
     JOIN pd_employees ON pd_orders.emp_id = pd_employees.id
     JOIN pd_customers ON pd_orders.cust_id = pd_customers.id
 WHERE
-    (pd_employees.name ILIKE '%Баранова%' OR pd_employees.manager_id = 1) AND
-    extract(month from pd_orders.delivery_date) IN (1, 2, 12)
+    (pd_employees.manager_id = 1 OR pd_employees.name ILIKE '%Баранова%') AND
+    (extract(month from pd_orders.delivery_date) IN (1, 2, 12))
 ORDER BY
-    pd_employees.name ASC
+    pd_employees.id ASC
 
 
