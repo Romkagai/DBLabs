@@ -36,7 +36,8 @@ FROM pd_products WHERE is_vegan OR is_hot;
 /*Список всех сотрудников в формате: <Имя> должность “<название с маленькой буквы>”,
   работает с <месяц (имя месяца)> <год> года.*/
 
-SELECT name || ', должность ' || lower(post) || ', работает с ' || start_date as data1
+SELECT name || ', должность ' || lower(post) || ', работает с ' || to_char(start_date, 'TMMonth') ||
+ ' ' || extract(year from start_date) || ' года' as employees
 from pd_employees;
 
 -----------
@@ -116,7 +117,7 @@ FROM pd_products
         WHEN category = 'Пицца' THEN 520
         WHEN category = 'Сэндвич-ролл' THEN 190
         ELSE 65
-    END
+    END;
 
 -----------
 /*Список всех курьеров, которые выполняли заказы 1-го и 2-го января.
@@ -129,7 +130,7 @@ FROM pd_orders
 WHERE
     extract(month from delivery_date) = 1 AND
     (extract(day from delivery_date) = 1 OR
-    extract(day from delivery_date) = 2)
+    extract(day from delivery_date) = 2);
 
 -----------
 /*Список всех заказчиков, заказывавших пиццу в октябрьском районе в сентябре или октябре.
@@ -141,11 +142,35 @@ FROM pd_orders
 WHERE
     pd_customers.area ILIKE 'Октябрьский' AND
     (extract(month from delivery_date) = 9 OR
-    extract(month from delivery_date) = 10)
+    extract(month from delivery_date) = 10);
 
 -----------
-/* ТЕСТ ИЗМЕНЕНИЯ N2 2e2 e2 e2 2 22e 2 e2
-   test 4
- */
+/*Список всех сотрудников в формате: <Имя> должность “<название с маленькой буквы>”,
+  работает с <месяц (имя месяца)> <год> года, непосредственный руководитель <Имя>.*/
+
+SELECT first.name || ', должность ' || lower(first.post) || ', работает с ' ||
+       to_char(first.start_date, 'TMMonth') ||
+       ' ' || extract(year from first.start_date) || ' года'
+FROM pd_employees first
+JOIN pd_employees second ON first.manager_id = second.id;
+
+-----------
+/*Список всех адресов (без дублирования), которые были доставлены под руководством
+  Барановой (или ей самой) зимой.
+  В списке также должны отображаться: имя курьера, адрес, район (‘нет’ – если район не известен).
+  Выборка должна быть отсортирована по именам курьеров.*/
+
+SELECT pd_employees.name,
+       street || ', дом ' || house_number || ', кв. ' || apartment as full_address,
+       CASE WHEN area IS NULL THEN 'Нет' ELSE area END AS area,
+       extract(month from delivery_date)
+FROM pd_orders
+    JOIN pd_employees ON pd_orders.emp_id = pd_employees.id
+    JOIN pd_customers ON pd_orders.cust_id = pd_customers.id
+WHERE
+    (pd_employees.name ILIKE '%Баранова%' OR pd_employees.manager_id = 1) AND
+    extract(month from pd_orders.delivery_date) IN (1, 2, 12)
+ORDER BY
+    pd_employees.name ASC
 
 
