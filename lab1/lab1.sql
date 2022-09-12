@@ -144,6 +144,6 @@ WHERE
     extract(month from delivery_date) = 10)
 
 -----------
-/* ТЕСТ ИЗМЕНЕНИЯ
+/* ТЕСТ ИЗМЕНЕНИЯ N2 2e2 e2 e2 2 22e 2 e2
 
 
