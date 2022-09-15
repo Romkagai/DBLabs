@@ -1,25 +1,25 @@
 -----------
-/* Список всех не пицц. Выборка должна содержать только наименование, цену и категорию товара. */
+/* 1 Список всех не пицц. Выборка должна содержать только наименование, цену и категорию товара. */
 
 SELECT product_name, category, price
 FROM pd_products
 WHERE category <> 'Пицца';
 
 -----------
-/* Список всех улиц и районов, в которые делались заказы. В списке не должно быть дублей.
+/* 2 Список всех улиц и районов, в которые делались заказы. В списке не должно быть дублей.
    Выборка должна содержать только улицу и район. */
 
 SELECT DISTINCT street, area
 FROM pd_customers;
 -----------
-/*Список всех продукты, в описании которых упоминается “Моцарелла”.
+/* 3 Список всех продукты, в описании которых упоминается “Моцарелла”.
   Выборка должна содержать только наименование и описание.*/
 
 SELECT product_name, description
 FROM pd_products
 WHERE description ILIKE '%Моцарелла%';
 -----------
-/*Список всех пицц, где для каждой подписана характеристика, является ли пицца острой или вегетарианской.
+/*4 Список всех пицц, где для каждой подписана характеристика, является ли пицца острой или вегетарианской.
   Характеристика должны быть подписана по-русски, должен учитываться вариант выставления обоих отметок.
   Выборка должна содержать только наименование, цену и характеристику.*/
 
@@ -27,39 +27,43 @@ SELECT product_name, price,
         CASE WHEN is_hot AND is_vegan THEN 'Острая, Вегетарианская'
             WHEN is_hot THEN 'Острая'
             WHEN is_vegan THEN 'Вегетарианская'
+            ELSE 'Нет'
         END AS characteristics
-FROM pd_products WHERE is_vegan OR is_hot;
-
-
+FROM
+    pd_products
+WHERE
+    category = 'Пицца';
 
 -----------
-/*Список всех сотрудников в формате: <Имя> должность “<название с маленькой буквы>”,
+/* 5 Список всех сотрудников в формате: <Имя> должность “<название с маленькой буквы>”,
   работает с <месяц (имя месяца)> <год> года.*/
 
 set lc_time = 'ru_RU';
+
 SELECT name || ', должность ' || lower(post) || ', работает с ' || to_char(start_date, 'TMMonth') ||
  ' ' || extract(year from start_date) || ' года' as employees
 from pd_employees;
 
 -----------
-/*Список адресов покупателей, которые не указали район.
+/* 6 Список адресов покупателей, которые не указали район.
   Выборка должна представлять список адресов в формате <название улицы>, дом <номер дома> кв. <номер квартиры>. */
 
 SELECT street || ', дом ' || house_number || ', кв. ' || apartment as full_address
-FROM pd_customers WHERE area IS NOT NULL;
+FROM pd_customers WHERE area IS NULL;
 
 -----------
-/*Выбрать все продукты без описания в категориях десерт и напитки.
+/* 7 Выбрать все продукты без описания в категориях десерт и напитки.
   Выборка должна содержать только наименование, цену и категорию.*/
 
 SELECT product_name, price, category
-FROM pd_products WHERE
-                     description IS NULL AND
-                     (category ILIKE 'Десерты' OR
-                     category ILIKE 'Напитки');
+FROM pd_products
+WHERE
+    (description IS NULL OR description = '') and
+    (category ILIKE 'Десерты' OR
+    category ILIKE 'Напитки');
 
 -----------
-/*Список всех острых или вегетарианских пицц с базиликом ценой от 500.
+/* 8 Список всех острых или вегетарианских пицц с базиликом ценой от 500.
   Выборка должна содержать только наименование, описание, категорию и цену.*/
 
 
@@ -69,8 +73,17 @@ FROM pd_products WHERE
                      price >= 500 AND
                      description ILIKE '%Базилик%';
 
+
 -----------
-/*Для каждого продукта рассчитать, на сколько процентов можно поднять цену,
+/* 9 Список всех острых пицц стоимостью от 460 до 510, если пицц при этом ещё и вегетарианская, то стоимость может доходить до 560.
+   Выборка должна содержать только наименование, цену и отметки об остроте и доступности для вегетарианцев.*/
+
+
+
+
+
+-----------
+/* 10 Для каждого продукта рассчитать, на сколько процентов можно поднять цену,
   так что бы первая цифра цены не поменялась (т.е. что бы все цены стали вида: x9, x99 и т.д).
   Выборка должна содержать только наименование, цену, новую цену,
   процент повышения цены (округлить до 3-х знаков после запятой), размер возможного повышения до копеек.
@@ -89,8 +102,10 @@ SELECT product_name, price,
 
 FROM pd_products;
 
+--ПЕРЕДЕЛАТЬ ПРОЦЕНТ
+
 -----------
-/*Список возможных цен на все продукты, если увеличить цену для острых продуктов на 1,5% , для вегетарианских на 1%, для острых и вегетарианских на 2%.
+/* 11 Список возможных цен на все продукты, если увеличить цену для острых продуктов на 1,5% , для вегетарианских на 1%, для острых и вегетарианских на 2%.
   Выбрать продукты, для которых новая цена не будет превышать 520 для пицц, 190 для сэндвич-роллов 65 для остальных.
   Выборка должна содержать только наименование, описание, цену, новую цену (до 2-х знаков после запятой),
   размер увеличения цены цену (до 2-х знаков после запятой) и отметки об остроте и доступности для вегетарианцев.
@@ -102,7 +117,17 @@ SELECT product_name, description, price,
                  WHEN is_hot AND is_vegan THEN 1.02
                  WHEN is_hot THEN 1.015
                  WHEN is_vegan THEN 1.01
+                 ELSE 1
              END, 2) AS new_price,
+
+       trunc(price *
+             CASE
+                 WHEN is_hot AND is_vegan THEN 0.02
+                 WHEN is_hot THEN 0.015
+                 WHEN is_vegan THEN 0.01
+                 ELSE 0
+             END, 2) AS add_price,
+
         is_hot, is_vegan
 
 FROM pd_products
@@ -111,6 +136,7 @@ FROM pd_products
         WHEN is_hot AND is_vegan THEN 1.02
         WHEN is_hot THEN 1.015
         WHEN is_vegan THEN 1.01
+        ELSE 1
     END
                         <=
     CASE
@@ -120,7 +146,7 @@ FROM pd_products
     END;
 
 -----------
-/*Список всех курьеров, которые выполняли заказы 1-го и 2-го января.
+/* 12 Список всех курьеров, которые выполняли заказы 1-го и 2-го января.
   Выборка должна содержать только Имя курьера и полный адрес заказа.*/
 
 SELECT pd_employees.name, street || ', дом ' || house_number || ', кв. ' || apartment as full_address
@@ -133,7 +159,7 @@ WHERE
     extract(day from delivery_date) = 2);
 
 -----------
-/*Список всех заказчиков, заказывавших пиццу в октябрьском районе в сентябре или октябре.
+/* 13 Список всех заказчиков, заказывавших пиццу в октябрьском районе в сентябре или октябре.
   Выборка должна содержать только имена покупателей без дублирования.*/
 
 SELECT DISTINCT pd_customers.name
@@ -145,14 +171,17 @@ WHERE
     extract(month from delivery_date) = 10);
 
 -----------
-/*Список всех сотрудников в формате: <Имя> должность “<название с маленькой буквы>”,
+/* 14 Список всех сотрудников в формате: <Имя> должность “<название с маленькой буквы>”,
   работает с <месяц (имя месяца)> <год> года, непосредственный руководитель <Имя>.*/
 
-SELECT first.name || ', должность ' || lower(first.post) || ', работает с ' ||
-       to_char(first.start_date, 'TMMonth') ||
-       ' ' || extract(year from first.start_date) || ' года'
+SELECT
+    first.name || ', должность ' || lower(first.post) || ', работает с ' ||
+    to_char(first.start_date, 'TMMonth') ||
+    ' ' || extract(year from first.start_date) || ' года, непосредственный руководитель: ' ||
+    second.name
+
 FROM pd_employees first
-JOIN pd_employees second ON first.manager_id = second.id;
+    JOIN pd_employees second ON first.manager_id = second.id;
 
 -----------
 /*Список всех адресов (без дублирования), которые были доставлены под руководством
@@ -160,11 +189,9 @@ JOIN pd_employees second ON first.manager_id = second.id;
   В списке также должны отображаться: имя курьера, адрес, район (‘нет’ – если район не известен).
   Выборка должна быть отсортирована по именам курьеров.*/
 
---доделать исключение! id не работает с distinctom
-
-SELECT pd_employees.name,
+SELECT DISTINCT pd_employees.name,
        street || ', дом ' || house_number || ', кв. ' || apartment as full_address,
-       CASE WHEN area IS NULL THEN 'Нет' ELSE area END AS area
+       CASE WHEN (area IS NULL ) THEN 'Нет' ELSE area END
 FROM pd_orders
     JOIN pd_employees ON pd_orders.emp_id = pd_employees.id
     JOIN pd_customers ON pd_orders.cust_id = pd_customers.id
@@ -172,6 +199,34 @@ WHERE
     (pd_employees.manager_id = 1 OR pd_employees.name ILIKE '%Баранова%') AND
     (extract(month from pd_orders.delivery_date) IN (1, 2, 12))
 ORDER BY
-    pd_employees.id ASC
+    pd_employees.name ASC;
+
+ДОДЕЛАТЬ AREA ??
+
+    SELECT area from pd_customers
+where area = ' '
+
+
+-----------
+/*Список продуктов, которые заказывали вместе с острыми или вегетарианскими пиццами в этом месяце.*/
+
+SELECT *
+FROM pd_order_details
+    JOIN pd_orders ON pd_orders.id = pd_order_details.order_id
+
+
+
+
+
+WHERE
+    --(FIRST.product_id <> SECOND.product_id) and
+    extract(month from pd_orders.order_date) = extract(month from current_date);
+
+
+
+
+
+
+
 
 
