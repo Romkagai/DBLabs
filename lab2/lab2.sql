@@ -8,6 +8,10 @@ where category ilike 'Пицца';
 -----------
 /* 2 Найти количество отменённых и просроченных заказов. Все атрибуты должны иметь имя. */
 
+select count(case when order_state ILIKE 'CANCEL' then id end) as cancelled_order,
+       count(case when exec_date > delivery_date then id end) as out_of_time_order
+from pd_orders;
+
 
 
 -----------
@@ -29,7 +33,7 @@ select post,
         extract (year from avg(age(current_date, birthday))) as average_age,
         extract (year from max(age(current_date, birthday))) as max_age,
         extract (year from min(age(current_date, birthday))) as min_age
-from pd_employees e
+from pd_employees
 group by post;
 
 /* 5 Для каждого заказа, сделанного зимой, посчитать сумму заказа. Выборка должна содержать номер заказа, сумму. */
@@ -57,5 +61,18 @@ from pd_order_details
 group by to_char(order_date, 'YYYY-MM')
 order by month;
 
-/* 7 Для каждого месяца найдите какой процент о общей выручки приходится на острые, вегетарианские, острые и вегетарианские продукты.
+/* 7 Для каждого месяца найдите какой процент о общей выручки приходится на острые, вегетарианские,
+   острые и вегетарианские продукты.
    Без учёта каких-либо скидок. */
+
+select to_char(order_date, 'YYYY-MM') as month,
+
+        trunc(sum(case when is_vegan and is_hot then quantity * price end) / sum(quantity * price) * 100, 2) as hot_and_vegan,
+        trunc(sum(case when is_vegan and not is_hot then quantity * price end) / sum(quantity * price) * 100, 2) as vegan,
+        trunc(sum(case when is_hot and not is_vegan then quantity * price end) / sum(quantity * price) * 100, 2) as hot
+
+from pd_order_details
+    join pd_orders on pd_orders.id = pd_order_details.id
+    join pd_products on pd_order_details.product_id = pd_products.id
+group by to_char(order_date, 'YYYY-MM')
+order by month;
