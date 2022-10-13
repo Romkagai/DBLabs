@@ -75,7 +75,7 @@ from pd_order_details
     join pd_orders on pd_order_details.order_id = pd_orders.id
     join pd_products on pd_order_details.product_id = pd_products.id
 
-group by to_char(order_date, 'YYYY-MM')
+group by month
 order by month;
 
 /* 8 Выбрать осенние заказы, в которых общее количество заказанных продуктов не больше 5.*/
@@ -87,7 +87,7 @@ from pd_order_details
 
 where (extract(month from pd_orders.order_date) IN (9, 10, 11))
 group by order_id
-having sum(quantity) <= 5
+having sum(quantity) <= 5;
 
 /* 9 Курьеров, которые чаще доставляли заказы в Кировский район, чем в Советский, за два последних месяца.*/
 
@@ -98,7 +98,7 @@ with EmployeesTable as(
     from pd_orders
         join pd_customers on pd_orders.cust_id = pd_customers.id
         join pd_employees on pd_orders.emp_id = pd_employees.id
-    where pd_orders.order_date > (current_timestamp - interval '2 month')
+    where pd_orders.order_date > (current_timestamp - interval '2 month') and post ilike 'курьер'
     group by emp_id
 )
 
@@ -122,4 +122,100 @@ from pd_orders
     join pd_order_details on pd_order_details.order_id = pd_orders.id
     join pd_employees on pd_employees.id = pd_orders.emp_id
     join pd_customers on pd_customers.id = pd_orders.cust_id
-    join pd_products on pd_products.id = pd_order_details.product_id
+    join pd_products on pd_products.id = pd_order_details.product_id;
+
+/* 11 Для каждого заказа, в котором есть хотя бы 1 острая пицца посчитать стоимость напитков. */
+
+with DrinksCost as(
+    select pd_orders.id, sum(price * quantity) as order_drink_cost
+    from pd_orders
+        join pd_order_details on pd_order_details.order_id = pd_orders.id
+        join pd_products on pd_products.id = pd_order_details.product_id
+    where category ilike 'напитки'
+    group by pd_orders.id
+    )
+
+, OrdersWithHotPizzas as(
+    select pd_order_details.order_id
+    from pd_order_details
+        join pd_products on pd_order_details.product_id = pd_products.id
+    where category ilike 'пицца' and is_hot
+    group by pd_order_details.order_id
+    )
+
+select OrdersWithHotPizzas.order_id, sum(DrinksCost.order_drink_cost) as sum_for_drinks
+from OrdersWithHotPizzas
+    join DrinksCost on OrdersWithHotPizzas.order_id = DrinksCost.id
+group by OrdersWithHotPizzas.order_id
+order by order_id;
+
+/* 12 Найти курьера, выполнившего вовремя наибольшее число заказов (без использования limit). */
+
+with OrderNumber as(
+        select emp_id, count(emp_id) as number_of_orders
+        from pd_orders
+        where exec_date <= pd_orders.delivery_date
+        group by emp_id
+)
+
+select emp_id, name
+from OrderNumber
+    join pd_employees on pd_employees.id = OrderNumber.emp_id
+where
+    number_of_orders = (select(max(number_of_orders)) from OrderNumber) and
+    post ilike 'курьер';
+
+
+/* 13 Определить район, в который чаще всего заказывали напитки (без использования limit). */
+/* P.S. Учитывается общее количество напитков в район*/
+
+with orders_with_drinks as(
+    select pd_orders.id, sum(quantity), pd_orders.cust_id
+    from pd_order_details
+        join pd_products on pd_products.id = pd_order_details.product_id
+        join pd_orders on pd_orders.id = pd_order_details.order_id
+    where category ilike 'напитки'
+    group by pd_orders.id
+),
+     areas_with_max_drinks as(
+     select area, count(area) as number_of_orders
+            from orders_with_drinks
+                join pd_customers on orders_with_drinks.cust_id = pd_customers.id
+            where area is not null
+            group by area
+            )
+select area
+from areas_with_max_drinks
+where number_of_orders = (select(max(number_of_orders)) from areas_with_max_drinks);
+
+/* Определить район, в который чаще всего заказывали только напитки и десерты без пицц (без использования limit).
+    P.S. В заказе не учитывается количество продуктов, только наличие в заказе напитков и десертов без пицц
+    ddnp - drinks desserts not pizzas*/
+
+with orders_with_ddnp as(
+    select pd_orders.id, cust_id
+        from pd_orders
+
+            join pd_order_details pod1 on pd_orders.id = pod1.order_id
+            join pd_products p1 on pod1.product_id = p1.id
+
+            join pd_order_details pod2 on pd_orders.id = pod2.order_id
+            join pd_products p2 on pod2.product_id = p2.id
+
+            join pd_order_details pod3 on pd_orders.id = pod3.order_id
+            join pd_products p3 on pod3.product_id = p3.id
+
+        where p1.category ilike 'напитки' and p2.category ilike 'десерты' and p3.category not ilike 'пицца'
+        group by pd_orders.id
+),
+     areas_with_ddnp as(
+     select area, count(area) as number_of_orders
+            from orders_with_ddnp
+                join pd_customers on orders_with_ddnp.cust_id = pd_customers.id
+            where area is not null
+            group by area
+            )
+select area
+from areas_with_ddnp
+where number_of_orders = (select(max(number_of_orders)) from areas_with_ddnp)
+
