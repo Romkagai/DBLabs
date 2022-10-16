@@ -153,13 +153,13 @@ where number_of_orders = (select(max(number_of_orders)) from OrderNumber)
 /* 13 Определить район, в который чаще всего заказывали напитки (без использования limit). */
 /* P.S. Учитывается общее количество напитков в район*/
 
-with orders_with_drinks as (select pd_orders.id, sum(quantity), pd_orders.cust_id
+with orders_with_drinks as (select pd_orders.id, sum(quantity) as sum_per_order, pd_orders.cust_id
                             from pd_order_details
                                      join pd_products on pd_products.id = pd_order_details.product_id
                                      join pd_orders on pd_orders.id = pd_order_details.order_id
                             where category ilike 'напитки'
                             group by pd_orders.id),
-     areas_with_max_drinks as (select area, count(area) as number_of_orders
+     areas_with_max_drinks as (select area, sum(sum_per_order) as number_of_orders
                                from orders_with_drinks
                                         join pd_customers on orders_with_drinks.cust_id = pd_customers.id
                                where area is not null
@@ -167,6 +167,7 @@ with orders_with_drinks as (select pd_orders.id, sum(quantity), pd_orders.cust_i
 select area
 from areas_with_max_drinks
 where number_of_orders = (select(max(number_of_orders)) from areas_with_max_drinks);
+
 
 /* 14 Определить район, в который чаще всего заказывали только напитки и десерты без пицц (без использования limit).
     P.S. В заказе не учитывается количество продуктов, только наличие в заказе напитков и десертов без пицц
